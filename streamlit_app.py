@@ -75,8 +75,6 @@ elif page == "Chat":
 	with col1:
 		if st.button("Clear"):
 			st.session_state.chat_history = []
-			# Clear the input field as well; Streamlit will rerun automatically on state change
-			st.session_state.chat_input = ""
 	with col2:
 		st.write("대화를 초기화하려면 Clear를 누르세요.")
 
@@ -148,6 +146,5 @@ elif page == "Chat":
 			copy_hist = list(st.session_state.chat_history)
 			reply = send_conversation(copy_hist, st.session_state.openai_api_key)
 		st.session_state.chat_history.append({"role": "assistant", "content": reply})
-		# Clear input after sending; Streamlit reruns automatically when session state changes
-		st.session_state.chat_input = ""
+		# input is controlled by the widget; no need to set session_state directly
 
