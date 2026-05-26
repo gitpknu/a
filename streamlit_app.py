@@ -1,6 +1,6 @@
 # Streamlit + OpenAI 간단 LLM QA 웹앱
 import streamlit as st
-import openai
+from openai import OpenAI
 from typing import Optional
 
 st.set_page_config(page_title="LLM QA", layout="centered")
@@ -24,14 +24,15 @@ def ask_llm(question: str, api_key: str) -> str:
 	if not api_key:
 		return "API Key가 필요합니다. 상단에 입력하세요."
 
-	openai.api_key = api_key
 	try:
-		resp = openai.ChatCompletion.create(
+		client = OpenAI(api_key=api_key)
+		resp = client.chat.completions.create(
 			model="gpt-3.5-turbo",
 			messages=[{"role": "user", "content": question}],
 			max_tokens=512,
 			temperature=0.2,
 		)
+		# new library keeps similar structure for chat completion responses
 		return resp.choices[0].message.content.strip()
 	except Exception as e:
 		return f"오류 발생: {e}"
