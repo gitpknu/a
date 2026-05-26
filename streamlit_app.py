@@ -119,8 +119,14 @@ elif page == "Chat":
 			client = OpenAI(api_key=api_key)
 			# Use Responses API; pass messages if available
 			# copy_history is list of dicts with role/content
-			messages = copy_history
-			resp = client.responses.create(model="gpt-4o-mini", messages=messages)
+			# Build 'input' payload expected by Responses API
+			input_payload = []
+			for m in copy_history:
+				role = m.get("role", "user")
+				content = m.get("content", "")
+				# Responses API expects content as a list of dicts with 'type'/'text'
+				input_payload.append({"role": role, "content": [{"type": "text", "text": content}]})
+			resp = client.responses.create(model="gpt-4o-mini", input=input_payload)
 			return extract_text_from_response(resp)
 		except Exception as e:
 			return f"오류 발생: {e}"
