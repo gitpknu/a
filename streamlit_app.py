@@ -84,32 +84,41 @@ elif page == "Chat":
 
 	def extract_text_from_response(resp) -> str:
 		# try several common shapes from the Responses API
+		# Prefer direct convenience field if present
+		if hasattr(resp, "output_text") and resp.output_text:
+			return resp.output_text
+
+		# Newer Responses API may include 'output' as a list of items
 		try:
-			if hasattr(resp, "output_text") and resp.output_text:
-				return resp.output_text
-		except Exception:
-			pass
-		try:
-			# resp.output is often a list of items with content
-			out = resp.output
+			out = getattr(resp, "output", None)
 			if out and isinstance(out, list):
 				parts = []
 				for item in out:
-					if isinstance(item, dict) and "content" in item:
-						for c in item["content"]:
-							if isinstance(c, dict) and "text" in c:
-								parts.append(c["text"])
+					# item may be a dict with 'content' list
+					if isinstance(item, dict):
+						content_list = item.get("content") or item.get("data") or []
+						for c in content_list:
+							# content elements can be dicts with 'text' or 'caption' keys
+							if isinstance(c, dict):
+								text = c.get("text") or c.get("caption") or c.get("content")
+								if text:
+									parts.append(text)
 							elif isinstance(c, str):
 								parts.append(c)
-				if parts:
-					return "\n".join(parts)
+			if parts:
+				return "\n".join(parts)
 		except Exception:
 			pass
+
+		# Legacy chat completions shape
 		try:
-			# legacy chat completions response
 			return resp.choices[0].message.content.strip()
 		except Exception:
-			return "(응답을 파싱할 수 없습니다.)"
+			# As a last resort, attempt to stringify the response object
+			try:
+				return str(resp)
+			except Exception:
+				return "(응답을 파싱할 수 없습니다.)"
 
 	@st.cache_data
 	def send_conversation(copy_history, api_key: str):
@@ -124,9 +133,12 @@ elif page == "Chat":
 			for m in copy_history:
 				role = m.get("role", "user")
 				content = m.get("content", "")
-				# Responses API expects content as a list of dicts with 'type'/'text'
-				input_payload.append({"role": role, "content": [{"type": "text", "text": content}]})
-			resp = client.responses.create(model="gpt-4o-mini", input=input_payload)
+				# Responses API expects content types like 'input_text'
+				input_payload.append({
+					"role": role,
+					"content": [{"type": "input_text", "text": content}],
+				})
+				resp = client.responses.create(model="gpt-4o-mini", input=input_payload)
 			return extract_text_from_response(resp)
 		except Exception as e:
 			return f"오류 발생: {e}"
